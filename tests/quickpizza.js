@@ -81,6 +81,18 @@ export default function () {
 
 function generateJUnitXml(data) {
     const duration = (data.state.testRunDuration / 1000).toFixed(3);
+
+    // Real avg HTTP response time (ms → s) — used as `time` per testcase so that
+    // the Jenkins Performance Plugin can build response-time trend charts across builds.
+    const avgReqDurationSec = (
+        (data.metrics['http_req_duration']?.values?.avg || 0) / 1000
+    ).toFixed(3);
+
+    // p90 and p95 go into the testsuite `properties` block for extra context.
+    const p90  = (data.metrics['http_req_duration']?.values?.['p(90)'] || 0).toFixed(2);
+    const p95  = (data.metrics['http_req_duration']?.values?.['p(95)'] || 0).toFixed(2);
+    const errRate = (data.metrics['http_req_failed']?.values?.rate || 0).toFixed(4);
+
     let testcases = '';
     let totalTests = 0;
     let totalFailures = 0;
@@ -92,12 +104,12 @@ function generateJUnitXml(data) {
             const name = `${prefix} > ${check.name}`;
             if (check.fails > 0) {
                 totalFailures++;
-                testcases += `    <testcase name="${name}" classname="k6" time="0">\n` +
+                testcases += `    <testcase name="${name}" classname="k6" time="${avgReqDurationSec}">\n` +
                     `      <failure message="${check.fails} failure(s) out of ${check.passes + check.fails} checks">` +
                     `${check.fails} failure(s) out of ${check.passes + check.fails} checks` +
                     `</failure>\n    </testcase>\n`;
             } else {
-                testcases += `    <testcase name="${name}" classname="k6" time="0"/>\n`;
+                testcases += `    <testcase name="${name}" classname="k6" time="${avgReqDurationSec}"/>\n`;
             }
         }
         for (const sub of group.groups) {
@@ -110,6 +122,12 @@ function generateJUnitXml(data) {
     return `<?xml version="1.0" encoding="UTF-8"?>\n` +
         `<testsuites>\n` +
         `  <testsuite name="k6" tests="${totalTests}" failures="${totalFailures}" time="${duration}">\n` +
+        `    <properties>\n` +
+        `      <property name="http_req_duration_avg_ms" value="${(avgReqDurationSec * 1000).toFixed(2)}"/>\n` +
+        `      <property name="http_req_duration_p90_ms" value="${p90}"/>\n` +
+        `      <property name="http_req_duration_p95_ms" value="${p95}"/>\n` +
+        `      <property name="http_req_failed_rate"     value="${errRate}"/>\n` +
+        `    </properties>\n` +
         testcases +
         `  </testsuite>\n` +
         `</testsuites>\n`;

@@ -136,9 +136,20 @@ pipeline {
                 allowEmptyArchive: true
             )
             // Publish JUnit-style test results (k6 checks → test cases)
+            // Each testcase carries http_req_duration avg as `time` so that the
+            // Performance Plugin can build response-time trend charts across builds.
             junit(
                 testResults:        'k6-junit.xml',
                 allowEmptyResults:  true
+            )
+            // Response-time & pass-rate trend charts across builds.
+            // Requires: Performance Plugin
+            //   Jenkins → Manage Jenkins → Plugins → search "Performance" → Install
+            perfReport(
+                sourceDataFiles:           'k6-junit.xml',
+                errorUnstableThreshold:    0,
+                errorFailedThreshold:      5,
+                modePerformancePerTestCase: true
             )
             // Publish HTML report in Jenkins UI
             // Requires: HTML Publisher Plugin
