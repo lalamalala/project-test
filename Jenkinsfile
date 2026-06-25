@@ -237,10 +237,11 @@ pipeline {
         always {
             // ── Archive everything ──────────────────────────────────────────
             // lh-*.report.html require JS and cannot render inside Jenkins CSP –
-            // kept as downloadable artifacts only; lighthouse-summary.html is the
-            // static in-Jenkins view.
+            // kept as downloadable artifacts only.
+            // lighthouse-report/ contains summary.html + lh-style.css (CSS in a
+            // separate file so Jenkins style-src 'self' CSP allows it).
             archiveArtifacts(
-                artifacts:         'k6-report-*.json, k6-report-*.html, k6-junit-*.xml, lh-*.report.html, lh-*.report.json, lighthouse-junit.xml, lighthouse-summary.html, lighthouse-scores-prev.json',
+                artifacts:         'k6-report-*.json, k6-report-*.html, k6-junit-*.xml, lh-*.report.html, lh-*.report.json, lighthouse-junit.xml, lighthouse-report/**, lighthouse-scores-prev.json',
                 allowEmptyArchive: true
             )
 
@@ -270,14 +271,16 @@ pipeline {
                 reportName:            'k6 Test Reports',
             ])
 
-            // ── Lighthouse summary (static HTML, no JS – renders in Jenkins) ─
+            // ── Lighthouse summary ─────────────────────────────────────────
+            // reportDir points to the subdirectory so that lh-style.css is served
+            // from the same origin as summary.html (satisfies style-src 'self' CSP).
             // Requires: HTML Publisher Plugin
             publishHTML(target: [
                 allowMissing:          true,
                 alwaysLinkToLastBuild: true,
                 keepAll:               true,
-                reportDir:             '.',
-                reportFiles:           'lighthouse-summary.html',
+                reportDir:             'lighthouse-report',
+                reportFiles:           'summary.html',
                 reportName:            'Lighthouse Audit Reports',
             ])
         }
