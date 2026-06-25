@@ -130,13 +130,8 @@ pipeline {
             steps {
                 script {
                     bat 'node --version'
-                    // Install Lighthouse globally if not already on PATH (first run only)
-                    def lhExit = bat(returnStatus: true, script: 'lighthouse --version >nul 2>&1')
-                    if (lhExit != 0) {
-                        echo 'Lighthouse not found – installing globally via npm...'
-                        bat 'npm install -g lighthouse'
-                    }
-                    bat 'lighthouse --version'
+                    // npx is bundled with Node.js and resolves packages without PATH issues.
+                    // --yes skips the "Need to install?" prompt on first use.
 
                     def pages = [
                         [name: 'main',        url: "${params.BASE_URL}/"],
@@ -145,8 +140,8 @@ pipeline {
 
                     pages.each { page ->
                         echo "Auditing ${page.url} ..."
-                        // --output html json  → lh-<name>.report.html + lh-<name>.report.json
-                        bat "lighthouse ${page.url}" +
+                        // --output html json → lh-<name>.report.html + lh-<name>.report.json
+                        bat "npx --yes lighthouse ${page.url}" +
                             " --output html --output json" +
                             " --output-path lh-${page.name}" +
                             " --chrome-flags=\"--headless --no-sandbox --disable-gpu\"" +
