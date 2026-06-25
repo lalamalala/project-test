@@ -26,30 +26,17 @@ pipeline {
 
     // ── Build parameters (visible in "Build with Parameters" UI) ─────────────
     parameters {
+        choice(
+            name:        'TEST_TYPE',
+            choices:     ['smoke', 'load'],
+            description: '''Test profile to run:
+  smoke (default) – 1 VU | ramp 10s | steady 30s | ramp-down 10s
+  load            – 5 VUs | ramp 30s | steady 1m  | ramp-down 10s'''
+        )
         string(
             name:         'BASE_URL',
             defaultValue: 'https://quickpizza.grafana.com',
             description:  'Target server URL (no trailing slash)'
-        )
-        string(
-            name:         'BASE_VUS',
-            defaultValue: '5',
-            description:  'VUs for the warm-up / base-load stage'
-        )
-        string(
-            name:         'PEAK_VUS',
-            defaultValue: '20',
-            description:  'VUs at peak load'
-        )
-        string(
-            name:         'RAMP_TIME',
-            defaultValue: '30s',
-            description:  'Duration of each ramp stage (e.g. 30s, 1m)'
-        )
-        string(
-            name:         'STEADY_TIME',
-            defaultValue: '2m',
-            description:  'Duration of each steady-state stage (e.g. 2m, 5m)'
         )
         booleanParam(
             name:         'ABORT_ON_THRESHOLD',
@@ -89,7 +76,7 @@ pipeline {
             }
         }
 
-        stage('Run k6 load test') {
+        stage("Run k6 ${params.TEST_TYPE} test") {
             steps {
                 script {
                     // Build k6 command parts – append --out cloud only when requested
@@ -104,10 +91,7 @@ pipeline {
 
                     cmdParts.addAll([
                         "-e BASE_URL=${params.BASE_URL}",
-                        "-e BASE_VUS=${params.BASE_VUS}",
-                        "-e PEAK_VUS=${params.PEAK_VUS}",
-                        "-e RAMP_TIME=${params.RAMP_TIME}",
-                        "-e STEADY_TIME=${params.STEADY_TIME}",
+                        "-e TEST_TYPE=${params.TEST_TYPE}",
                         'tests\\quickpizza.js',
                     ])
 

@@ -1,27 +1,36 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // Load-test options for QuickPizza
 //
-// Environment variables (pass with -e flag or in Jenkinsfile):
-//   BASE_VUS    – VUs at the warm-up and steady phases  (default: 5)
-//   PEAK_VUS    – VUs at peak load                       (default: 20)
-//   RAMP_TIME   – duration of each ramp stage            (default: 30s)
-//   STEADY_TIME – duration of each steady stage          (default: 2m)
+// Select a test profile with the TEST_TYPE environment variable:
+//   smoke  (default) – quick sanity check: 1 VU, ramp 10s, steady 30s, ramp-down 10s
+//   load             – real load:          5 VUs, ramp 30s, steady 1m,  ramp-down 10s
+//
+// Usage:
+//   k6 run -e TEST_TYPE=smoke tests/quickpizza.js
+//   k6 run -e TEST_TYPE=load  tests/quickpizza.js
 // ─────────────────────────────────────────────────────────────────────────────
 
-const BASE_VUS    = parseInt(__ENV.BASE_VUS    || '5');
-const PEAK_VUS    = parseInt(__ENV.PEAK_VUS    || '20');
-const RAMP_TIME   = __ENV.RAMP_TIME   || '30s';
-const STEADY_TIME = __ENV.STEADY_TIME || '2m';
+const profiles = {
+    smoke: {
+        stages: [
+            { duration: '10s', target: 1 }, // ramp-up
+            { duration: '30s', target: 1 }, // steady
+            { duration: '10s', target: 0 }, // ramp-down
+        ],
+    },
+    load: {
+        stages: [
+            { duration: '30s', target: 5 }, // ramp-up
+            { duration: '1m',  target: 5 }, // steady
+            { duration: '10s', target: 0 }, // ramp-down
+        ],
+    },
+};
+
+const profile = profiles[__ENV.TEST_TYPE] || profiles.smoke;
 
 export const options = {
-    // ── Stages (ramp-up → steady → peak → ramp-down) ──────────────────────
-    stages: [
-        { duration: RAMP_TIME,   target: BASE_VUS  }, // warm-up ramp
-        { duration: STEADY_TIME, target: BASE_VUS  }, // steady base load
-        { duration: RAMP_TIME,   target: PEAK_VUS  }, // ramp to peak
-        { duration: STEADY_TIME, target: PEAK_VUS  }, // peak load
-        { duration: RAMP_TIME,   target: 0          }, // ramp-down
-    ],
+    stages: profile.stages,
 
     // ── Performance thresholds ────────────────────────────────────────────
     thresholds: {
