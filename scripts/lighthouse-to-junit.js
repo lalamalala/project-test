@@ -259,6 +259,43 @@ h1 { font-size: 1.7rem; font-weight: 800; color: #1a1a2e; margin-bottom: .4rem; 
 
 .no-recs { font-size: .85rem; color: #aaa; font-style: italic; padding: .3rem 0; }
 
+
+/* -- Collapsible recommendations (CSS checkbox trick, no JS) -------------- */
+.rec-toggle { display: none; }
+.rec-body   { display: none; }
+.rec-toggle:checked + .recs-header + .rec-body { display: block; }
+.recs-header {
+  display: flex; align-items: center; gap: .5rem;
+  cursor: pointer; user-select: none;
+  font-size: .95rem; font-weight: 700; color: #444;
+  padding: .5rem .7rem; border-radius: 6px; margin-bottom: 0;
+  background: #f7f8fa; border: 1px solid #e5e7eb;
+}
+.recs-header:hover { background: #eef0f5; }
+.toggle-arrow { margin-left: auto; font-size: .8rem; color: #aaa; }
+.rec-body { padding-top: .6rem; }
+
+/* -- Summary table --------------------------------------------------------- */
+.summary-wrap {
+  background: #fff; border-radius: 12px; padding: 1.2rem 1.6rem;
+  margin-bottom: 1.4rem; box-shadow: 0 2px 10px rgba(0,0,0,.08);
+}
+.summary-wrap h2 { font-size: 1rem; font-weight: 700; color: #444; margin-bottom: .8rem; }
+.summary-table { border-collapse: collapse; width: 100%; }
+.summary-table th {
+  background: #f5f6f8; font-size: .78rem; font-weight: 700;
+  color: #666; text-transform: uppercase; letter-spacing: .05em;
+  padding: .55rem .9rem; border: 1px solid #e8e8e8; text-align: center;
+}
+.summary-table th.col-page { text-align: left; min-width: 160px; }
+.summary-table td { padding: .55rem .9rem; border: 1px solid #e8e8e8; text-align: center; font-weight: 700; font-size: .92rem; }
+.summary-table td.pg { text-align: left; font-weight: 600; color: #333; }
+.summary-table td.good { color: #0a6b3a; background: #f0fdf6; }
+.summary-table td.avg  { color: #7a4d00; background: #fffbf0; }
+.summary-table td.bad  { color: #a81a0e; background: #fff5f5; }
+.summary-table td.st-pass { color: #0a6b3a; }
+.summary-table td.st-fail { color: #a81a0e; }
+.summary-table small { font-size: .72rem; font-weight: 400; opacity: .85; }
 /* â”€â”€ Legend â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .legend {
   margin-top: 1.4rem; background: #fff; border-radius: 10px;
@@ -321,9 +358,16 @@ const cards = allPages.map(({ pageName, label, url, results }) => {
             return `<div class="rec-cat-title">${catLabel} &mdash; score ${score}/100</div>${items}`;
         }).join('');
 
+    const totalIssues = results.reduce((n, r) => n + r.failed.length, 0);
+    const recsLabel   = totalIssues > 0
+        ? `&#128270;&nbsp;Recommendations&nbsp;<span style="font-weight:400;font-size:.8rem;color:#888">(${totalIssues} issue${totalIssues > 1 ? 's' : ''})</span>`
+        : `&#10003;&nbsp;All audits passed`;
     const recsSection = recGroups
-        ? `<div>
-      <div class="recs-title">&#128270;&nbsp;Recommendations</div>
+        ? `<input type="checkbox" id="recs-${pageName}" class="rec-toggle">
+    <label for="recs-${pageName}" class="recs-header">
+      ${recsLabel}<span class="toggle-arrow">&#9660;</span>
+    </label>
+    <div class="rec-body">
       ${recGroups}
     </div>`
         : `<p class="no-recs">&#10003;&nbsp;All audits passed &mdash; no recommendations.</p>`;
@@ -347,6 +391,34 @@ const prevLine = prevData
     ? `&#128257;&nbsp;Compared to: <strong>${prevData.buildInfo || prevData.timestamp}</strong>`
     : `&#128310;&nbsp;No previous build data &mdash; delta will appear from next run`;
 
+// Summary table rows
+const summaryRows = allPages.map(({ label, results }) => {
+    const pass = results.every(r => r.score >= threshold);
+    const cells = results.map(({ score, prev }) => {
+        const sc = scoreClass(score);
+        const dh = deltaHtml(score, prev);
+        return `<td class="${sc}">${score}${dh ? `<br><small>${dh}</small>` : ''}</td>`;
+    }).join('');
+    const stCls = pass ? 'st-pass' : 'st-fail';
+    const stTxt = pass ? '&#10003; PASS' : '&#10007; FAIL';
+    return `<tr><td class="pg">${label}</td>${cells}<td class="${stCls}">${stTxt}</td></tr>`;
+}).join('\n');
+
+const summaryTable = `
+<div class="summary-wrap">
+  <h2>&#128203;&nbsp;All Pages at a Glance</h2>
+  <table class="summary-table">
+    <thead><tr>
+      <th class="col-page">Page</th>
+      <th>Performance</th><th>Accessibility</th><th>Best Practices</th><th>SEO</th>
+      <th>Status</th>
+    </tr></thead>
+    <tbody>
+      ${summaryRows}
+    </tbody>
+  </table>
+</div>`;
+
 const HTML = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -361,6 +433,7 @@ const HTML = `<!DOCTYPE html>
   <span class="chip">Threshold: ${threshold}/100</span>
   <span class="prev-line">${prevLine}</span>
 </div>
+${summaryTable}
 ${cards}
 <div class="legend">
   <span><span class="dot dot-g"></span>Good &ge;&nbsp;90</span>
