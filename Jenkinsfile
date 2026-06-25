@@ -130,8 +130,11 @@ pipeline {
             steps {
                 script {
                     bat 'node --version'
-                    // npx is bundled with Node.js and resolves packages without PATH issues.
-                    // --yes skips the "Need to install?" prompt on first use.
+                    // Create a workspace-local temp dir.
+                    // Jenkins service accounts often lack delete permission on
+                    // C:\WINDOWS\TEMP, which causes Chrome/Lighthouse to throw EPERM
+                    // on cleanup. Redirecting TEMP/TMP to the workspace fixes this.
+                    bat 'if not exist chrome-temp mkdir chrome-temp'
 
                     def pages = [
                         [name: 'main',        url: "${params.BASE_URL}/"],
@@ -140,12 +143,17 @@ pipeline {
 
                     pages.each { page ->
                         echo "Auditing ${page.url} ..."
-                        // --output html json → lh-<name>.report.html + lh-<name>.report.json
-                        bat "npx --yes lighthouse ${page.url}" +
-                            " --output html --output json" +
-                            " --output-path lh-${page.name}" +
-                            " --chrome-flags=\"--headless --no-sandbox --disable-gpu\"" +
-                            " --quiet"
+                        withEnv([
+                            "TEMP=${env.WORKSPACE}\\chrome-temp",
+                            "TMP=${env.WORKSPACE}\\chrome-temp",
+                        ]) {
+                            // --user-data-dir keeps Chrome profile data in the workspace too
+                            bat "npx --yes lighthouse ${page.url}" +
+                                " --output html --output json" +
+                                " --output-path lh-${page.name}" +
+                                " --chrome-flags=\"--headless --no-sandbox --disable-gpu --user-data-dir=chrome-tmp\"" +
+                                " --quiet"
+                        }
                     }
 
                     // Convert Lighthouse JSON → JUnit XML for Jenkins trend charts
