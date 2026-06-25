@@ -68,6 +68,16 @@ pipeline {
             description:  'Target server URL (no trailing slash)'
         )
         booleanParam(
+            name:         'RUN_LIGHTHOUSE',
+            defaultValue: true,
+            description:  'Run Lighthouse page audit before load tests (requires Node.js + Chrome on agent)'
+        )
+        string(
+            name:         'LIGHTHOUSE_THRESHOLD',
+            defaultValue: '80',
+            description:  'Minimum acceptable Lighthouse score (0-100). Scores below this fail the testcase.'
+        )
+        booleanParam(
             name:         'ABORT_ON_THRESHOLD',
             defaultValue: true,
             description:  'Fail the build when k6 thresholds are breached (exit code 99)'
@@ -101,6 +111,46 @@ pipeline {
         stage('Validate k6 installation') {
             steps {
                 bat 'k6 version'
+            }
+        }
+
+        // ── Lighthouse page performance audit ─────────────────────────────────
+        // Audits each page BEFORE load tests to capture a clean-state baseline.
+        // Scores are saved as JUnit XML → Jenkins Performance Plugin shows
+        // score trends (Performance, Accessibility, Best Practices, SEO) across builds.
+        //
+        // Requirements on the Jenkins agent:
+        //   • Node.js + npm  (verified via `node --version`)
+        //   • Lighthouse CLI  (npm install -g lighthouse)
+        //   • Google Chrome   (must be discoverable by Lighthouse)
+        stage('Lighthouse audit') {
+            when {
+                expression { params.RUN_LIGHTHOUSE }
+            }
+            steps {
+                script {
+                    // Sanity-check that lighthouse is available
+                    bat 'node --version'
+                    bat 'lighthouse --version'
+
+                    def pages = [
+                        [name: 'main',        url: "${params.BASE_URL}/"],
+                        [name: 'admin-login', url: "${params.BASE_URL}/admin"],
+                    ]
+
+                    pages.each { page ->
+                        echo "Auditing ${page.url} ..."
+                        // --output html json  → lh-<name>.report.html + lh-<name>.report.json
+                        bat "lighthouse ${page.url}" +
+                            " --output html --output json" +
+                            " --output-path lh-${page.name}" +
+                            " --chrome-flags=\"--headless --no-sandbox --disable-gpu\"" +
+                            " --quiet"
+                    }
+
+                    // Convert Lighthouse JSON → JUnit XML for Jenkins trend charts
+                    bat "node scripts/lighthouse-to-junit.js ${params.LIGHTHOUSE_THRESHOLD}"
+                }
             }
         }
 
@@ -167,27 +217,28 @@ pipeline {
     // ── Post-build actions ────────────────────────────────────────────────────
     post {
         always {
-            // Archive JSON metrics + JUnit XML + HTML reports for all test types
+            // ── Archive everything ──────────────────────────────────────────
             archiveArtifacts(
-                artifacts:         'k6-report-*.json, k6-report-*.html, k6-junit-*.xml',
+                artifacts:         'k6-report-*.json, k6-report-*.html, k6-junit-*.xml, lh-*.report.html, lh-*.report.json, lighthouse-junit.xml',
                 allowEmptyArchive: true
             )
-            // Publish JUnit-style test results – glob picks up smoke + load XMLs
+
+            // ── JUnit trend (k6 checks + Lighthouse scores) ────────────────
             junit(
-                testResults:       'k6-junit-*.xml',
+                testResults:       'k6-junit-*.xml, lighthouse-junit.xml',
                 allowEmptyResults: true
             )
-            // Response-time & pass-rate trend charts across builds.
+
+            // ── Performance trend charts (k6 + Lighthouse) ─────────────────
             // Requires: Performance Plugin
-            //   Jenkins → Manage Jenkins → Plugins → search "Performance" → Install
             perfReport(
-                sourceDataFiles:            'k6-junit-*.xml',
+                sourceDataFiles:            'k6-junit-*.xml, lighthouse-junit.xml',
                 errorUnstableThreshold:     0,
                 errorFailedThreshold:       5,
                 modePerformancePerTestCase: true
             )
-            // Publish HTML reports (smoke and/or load) in Jenkins UI
-            // Requires: HTML Publisher Plugin
+
+            // ── k6 HTML reports ────────────────────────────────────────────
             publishHTML(target: [
                 allowMissing:          true,
                 alwaysLinkToLastBuild: true,
@@ -195,6 +246,17 @@ pipeline {
                 reportDir:             '.',
                 reportFiles:           'k6-report-smoke.html,k6-report-load.html',
                 reportName:            'k6 Test Reports',
+            ])
+
+            // ── Lighthouse HTML reports ────────────────────────────────────
+            // Requires: HTML Publisher Plugin
+            publishHTML(target: [
+                allowMissing:          true,
+                alwaysLinkToLastBuild: true,
+                keepAll:               true,
+                reportDir:             '.',
+                reportFiles:           'lh-main.report.html,lh-admin-login.report.html',
+                reportName:            'Lighthouse Audit Reports',
             ])
         }
 
