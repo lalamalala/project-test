@@ -134,9 +134,10 @@ function generateJUnitXml(data) {
 }
 
 export function handleSummary(data) {
+    const type = __ENV.TEST_TYPE || 'smoke';
     return {
-        'k6-report.html': htmlReport(data),
-        'k6-junit.xml':   generateJUnitXml(data),
+        [`k6-report-${type}.html`]: htmlReport(data),
+        [`k6-junit-${type}.xml`]:   generateJUnitXml(data),
         stdout: textSummary(data, { indent: ' ', enableColors: false }),
     };
 }
