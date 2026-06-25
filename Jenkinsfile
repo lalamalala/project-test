@@ -236,8 +236,11 @@ pipeline {
     post {
         always {
             // ── Archive everything ──────────────────────────────────────────
+            // lh-*.report.html require JS and cannot render inside Jenkins CSP –
+            // kept as downloadable artifacts only; lighthouse-summary.html is the
+            // static in-Jenkins view.
             archiveArtifacts(
-                artifacts:         'k6-report-*.json, k6-report-*.html, k6-junit-*.xml, lh-*.report.html, lh-*.report.json, lighthouse-junit.xml',
+                artifacts:         'k6-report-*.json, k6-report-*.html, k6-junit-*.xml, lh-*.report.html, lh-*.report.json, lighthouse-junit.xml, lighthouse-summary.html',
                 allowEmptyArchive: true
             )
 
@@ -257,6 +260,7 @@ pipeline {
             )
 
             // ── k6 HTML reports ────────────────────────────────────────────
+            // Requires: HTML Publisher Plugin
             publishHTML(target: [
                 allowMissing:          true,
                 alwaysLinkToLastBuild: true,
@@ -266,14 +270,14 @@ pipeline {
                 reportName:            'k6 Test Reports',
             ])
 
-            // ── Lighthouse HTML reports ────────────────────────────────────
+            // ── Lighthouse summary (static HTML, no JS – renders in Jenkins) ─
             // Requires: HTML Publisher Plugin
             publishHTML(target: [
                 allowMissing:          true,
                 alwaysLinkToLastBuild: true,
                 keepAll:               true,
                 reportDir:             '.',
-                reportFiles:           'lh-main.report.html,lh-admin-login.report.html',
+                reportFiles:           'lighthouse-summary.html',
                 reportName:            'Lighthouse Audit Reports',
             ])
         }
