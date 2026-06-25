@@ -76,9 +76,10 @@ pipeline {
             }
         }
 
-        stage("Run k6 ${params.TEST_TYPE} test") {
+        stage('Run k6 test') {
             steps {
                 script {
+                    echo "Test profile: ${params.TEST_TYPE}"
                     // Build k6 command parts – append --out cloud only when requested
                     def cmdParts = [
                         'k6 run',
