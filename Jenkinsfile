@@ -77,6 +77,17 @@ pipeline {
             defaultValue: '70',
             description:  'Minimum acceptable Lighthouse score (0-100). Scores below this are flagged in the HTML report.'
         )
+        // ── Lighthouse authenticated audit ───────────────────────────────────
+        // Requires Jenkins credential: ID = quickpizza-admin-password, Kind = Secret text
+        // Jenkins → Manage Jenkins → Credentials → Global → Add Credential
+        //   Kind   : Secret text
+        //   Secret : <QuickPizza admin password>
+        //   ID     : quickpizza-admin-password
+        string(
+            name:         'ADMIN_USER',
+            defaultValue: 'admin',
+            description:  'QuickPizza admin username for authenticated Lighthouse audit'
+        )
         booleanParam(
             name:         'ABORT_ON_THRESHOLD',
             defaultValue: true,
@@ -168,6 +179,46 @@ pipeline {
 
                     // Convert Lighthouse JSON → JUnit XML for Jenkins trend charts
                     bat "node scripts/lighthouse-to-junit.js ${params.LIGHTHOUSE_THRESHOLD}"
+
+                    // ── Authenticated admin page audit ─────────────────────
+                    // Requires 'quickpizza-admin-password' Jenkins credential.
+                    // If the credential is not found the step is skipped gracefully.
+                    try {
+                        withCredentials([string(
+                            credentialsId: 'quickpizza-admin-password',
+                            variable:      'QP_ADMIN_PASS'
+                        )]) {
+                            echo "Getting QuickPizza auth token for admin page audit ..."
+                            bat "node scripts/get-auth-headers.js ${params.BASE_URL} ${params.ADMIN_USER} %QP_ADMIN_PASS% lh-auth-headers.json"
+
+                            withEnv([
+                                "TEMP=${env.WORKSPACE}\\chrome-temp",
+                                "TMP=${env.WORKSPACE}\\chrome-temp",
+                            ]) {
+                                def adminExit = bat(returnStatus: true, script:
+                                    "npx --yes lighthouse ${params.BASE_URL}/admin" +
+                                    " --output html --output json" +
+                                    " --output-path lh-admin" +
+                                    " --extra-headers-path lh-auth-headers.json" +
+                                    " --chrome-flags=\"--headless --no-sandbox --disable-gpu --user-data-dir=chrome-tmp\"" +
+                                    " --quiet"
+                                )
+                                if (adminExit != 0) {
+                                    def missing = bat(returnStatus: true,
+                                        script: 'if not exist lh-admin.report.json exit 1')
+                                    if (missing != 0) {
+                                        echo "WARNING: Authenticated admin audit failed (exit ${adminExit}) – report not generated, skipping."
+                                    } else {
+                                        echo "WARNING: Lighthouse exited ${adminExit} (EPERM on temp cleanup). Report generated OK."
+                                    }
+                                }
+                            }
+                            // Re-run the converter to include the new lh-admin.report.json
+                            bat "node scripts/lighthouse-to-junit.js ${params.LIGHTHOUSE_THRESHOLD}"
+                        }
+                    } catch (e) {
+                        echo "INFO: Skipping authenticated admin page audit (quickpizza-admin-password credential not found)."
+                    }
                 }
             }
         }

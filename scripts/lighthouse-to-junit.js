@@ -29,6 +29,7 @@ const REPORT_DIR   = 'lighthouse-report';
 
 const PAGE_LABELS = {
     'main':        'Main Page',
+    'admin':       'Admin Page (Authenticated)',
     'admin-login': 'Admin Login Page',
 };
 
