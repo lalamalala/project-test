@@ -129,8 +129,13 @@ pipeline {
             }
             steps {
                 script {
-                    // Sanity-check that lighthouse is available
                     bat 'node --version'
+                    // Install Lighthouse globally if not already on PATH (first run only)
+                    def lhExit = bat(returnStatus: true, script: 'lighthouse --version >nul 2>&1')
+                    if (lhExit != 0) {
+                        echo 'Lighthouse not found – installing globally via npm...'
+                        bat 'npm install -g lighthouse'
+                    }
                     bat 'lighthouse --version'
 
                     def pages = [
