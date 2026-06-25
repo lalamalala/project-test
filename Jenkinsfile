@@ -130,14 +130,16 @@ pipeline {
     // ── Post-build actions ────────────────────────────────────────────────────
     post {
         always {
-            // Archive raw JSON metrics
+            // Archive raw JSON metrics + JUnit XML + HTML report
             archiveArtifacts(
-                artifacts:         "${K6_REPORT}, k6-report.html",
+                artifacts:         "${K6_REPORT}, k6-report.html, k6-junit.xml",
                 allowEmptyArchive: true
             )
-            perfReport (
-                sourceDataFiles: "${K6_REPORT}", errorUnstableThreshold: 0 
-                )
+            // Publish JUnit-style test results (k6 checks → test cases)
+            junit(
+                testResults:        'k6-junit.xml',
+                allowEmptyResults:  true
+            )
             // Publish HTML report in Jenkins UI
             // Requires: HTML Publisher Plugin
             //   Jenkins → Manage Jenkins → Plugins → search "HTML Publisher" → Install

@@ -76,12 +76,49 @@ export default function () {
 }
 
 // -- Summary (runs once after the test, on the k6 process) -------------------
-// Generates an HTML report file and prints the standard text table to stdout.
-// Jenkins HTML Publisher Plugin picks up k6-report.html automatically.
+// Generates an HTML report, a JUnit XML (consumed by Jenkins junit step),
+// and prints the standard text table to stdout.
+
+function generateJUnitXml(data) {
+    const duration = (data.state.testRunDuration / 1000).toFixed(3);
+    let testcases = '';
+    let totalTests = 0;
+    let totalFailures = 0;
+
+    function processGroup(group, parentName) {
+        const prefix = parentName ? `${parentName} > ${group.name}` : group.name;
+        for (const check of group.checks) {
+            totalTests++;
+            const name = `${prefix} > ${check.name}`;
+            if (check.fails > 0) {
+                totalFailures++;
+                testcases += `    <testcase name="${name}" classname="k6" time="0">\n` +
+                    `      <failure message="${check.fails} failure(s) out of ${check.passes + check.fails} checks">` +
+                    `${check.fails} failure(s) out of ${check.passes + check.fails} checks` +
+                    `</failure>\n    </testcase>\n`;
+            } else {
+                testcases += `    <testcase name="${name}" classname="k6" time="0"/>\n`;
+            }
+        }
+        for (const sub of group.groups) {
+            processGroup(sub, prefix);
+        }
+    }
+
+    processGroup(data.root_group, '');
+
+    return `<?xml version="1.0" encoding="UTF-8"?>\n` +
+        `<testsuites>\n` +
+        `  <testsuite name="k6" tests="${totalTests}" failures="${totalFailures}" time="${duration}">\n` +
+        testcases +
+        `  </testsuite>\n` +
+        `</testsuites>\n`;
+}
 
 export function handleSummary(data) {
     return {
         'k6-report.html': htmlReport(data),
+        'k6-junit.xml':   generateJUnitXml(data),
         stdout: textSummary(data, { indent: ' ', enableColors: false }),
     };
 }
