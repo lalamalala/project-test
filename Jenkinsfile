@@ -108,7 +108,7 @@ pipeline {
                         "-e PEAK_VUS=${params.PEAK_VUS}",
                         "-e RAMP_TIME=${params.RAMP_TIME}",
                         "-e STEADY_TIME=${params.STEADY_TIME}",
-                        'project-test\\tests\\quickpizza.js',
+                        'tests\\quickpizza.js',
                     ])
 
                     // Join with Windows ^ line-continuation for readable console output
