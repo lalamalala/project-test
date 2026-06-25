@@ -1,25 +1,27 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// QuickPizza load test  –  https://quickpizza.grafana.com
+﻿// -----------------------------------------------------------------------------
+// QuickPizza load test  -  https://quickpizza.grafana.com
 //
 // Admin user journey per VU iteration:
-//   1. Open main page   GET  /
-//   2. Click admin link  GET  /admin
-//   3. Sign in as admin  POST /api/admin/login?user=admin&password=admin
-//   4. Back to main page GET  /
+//   1. Main Page        GET  /
+//   2. Admin Login Page GET  /admin
+//   3. Admin Page       POST /api/admin/login?user=admin&password=admin
+//   4. Main Page        GET  /
 //
 // Run locally:
 //   k6 run tests/quickpizza.js
 //
 // Override target URL and load parameters:
-//   k6 run -e BASE_URL=https://quickpizza.grafana.com \
-//           -e BASE_VUS=5 -e PEAK_VUS=20 \
+//   k6 run -e BASE_URL=https://quickpizza.grafana.com ^
+//           -e BASE_VUS=5 -e PEAK_VUS=20 ^
 //           tests/quickpizza.js
 //
 // Override admin credentials (optional, defaults to admin/admin):
 //   k6 run -e ADMIN_USERNAME=admin -e ADMIN_PASSWORD=admin tests/quickpizza.js
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 
 import { sleep, group } from 'k6';
+import { htmlReport } from 'https://raw.githubusercontent.com/benc-uk/k6-reporter/main/dist/bundle.js';
+import { textSummary } from 'https://jslib.k6.io/k6-summary/0.0.2/index.js';
 
 import { options as loadOptions } from '../config/options.js';
 import { randomIntBetween } from '../lib/helpers.js';
@@ -32,28 +34,28 @@ import {
 // Re-export options so k6 picks them up
 export const options = loadOptions;
 
-// ── Default (VU) function ─────────────────────────────────────────────────────
+// -- Default (VU) function ----------------------------------------------------
 
 export default function () {
 
-    // ── 1. Открываем главную страницу ────────────────────────────────────────
-    group('01_main_page', () => {
+    // -- 1. Main Page ---------------------------------------------------------
+    group('Main Page', () => {
         visitMainPage();
     });
 
     sleep(randomIntBetween(1, 2));
 
-    // ── 2. Нажимаем «Click here» → переходим на /admin ───────────────────────
-    group('02_admin_page', () => {
+    // -- 2. Admin Login Page  (click "Click here" link on the main page) ------
+    group('Admin Login Page', () => {
         visitAdminPage();
     });
 
     sleep(randomIntBetween(1, 2));
 
-    // ── 3. Вводим Username: admin, Password: admin → нажимаем Sign in ─────────
+    // -- 3. Admin Page  (fill Username/Password and click Sign in) ------------
     let adminToken;
 
-    group('03_admin_sign_in', () => {
+    group('Admin Page', () => {
         const res = adminLogin();
         adminToken = res.json('token');
     });
@@ -65,10 +67,21 @@ export default function () {
 
     sleep(randomIntBetween(1, 2));
 
-    // ── 4. Нажимаем «Back to main page» ──────────────────────────────────────
-    group('04_back_to_main', () => {
+    // -- 4. Main Page  (click "Back to main page") ----------------------------
+    group('Main Page', () => {
         visitMainPage();
     });
 
     sleep(randomIntBetween(1, 3));
+}
+
+// -- Summary (runs once after the test, on the k6 process) -------------------
+// Generates an HTML report file and prints the standard text table to stdout.
+// Jenkins HTML Publisher Plugin picks up k6-report.html automatically.
+
+export function handleSummary(data) {
+    return {
+        'k6-report.html': htmlReport(data),
+        stdout: textSummary(data, { indent: ' ', enableColors: false }),
+    };
 }

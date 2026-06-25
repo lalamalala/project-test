@@ -130,11 +130,25 @@ pipeline {
     // ── Post-build actions ────────────────────────────────────────────────────
     post {
         always {
-            // Archive the JSON metrics report regardless of outcome
+            // Archive raw JSON metrics
             archiveArtifacts(
-                artifacts:         "${K6_REPORT}",
+                artifacts:         "${K6_REPORT}, k6-report.html",
                 allowEmptyArchive: true
             )
+            perfReport (
+                sourceDataFiles: "${K6_REPORT}", errorUnstableThreshold: 0 
+                )
+            // Publish HTML report in Jenkins UI
+            // Requires: HTML Publisher Plugin
+            //   Jenkins → Manage Jenkins → Plugins → search "HTML Publisher" → Install
+            publishHTML(target: [
+                allowMissing:          true,
+                alwaysLinkToLastBuild: true,
+                keepAll:               true,
+                reportDir:             '.',
+                reportFiles:           'k6-report.html',
+                reportName:            'k6 Load Test Report',
+            ])
         }
 
         success {
