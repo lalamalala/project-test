@@ -240,7 +240,7 @@ pipeline {
             // kept as downloadable artifacts only; lighthouse-summary.html is the
             // static in-Jenkins view.
             archiveArtifacts(
-                artifacts:         'k6-report-*.json, k6-report-*.html, k6-junit-*.xml, lh-*.report.html, lh-*.report.json, lighthouse-junit.xml, lighthouse-summary.html',
+                artifacts:         'k6-report-*.json, k6-report-*.html, k6-junit-*.xml, lh-*.report.html, lh-*.report.json, lighthouse-junit.xml, lighthouse-summary.html, lighthouse-scores-prev.json',
                 allowEmptyArchive: true
             )
 
