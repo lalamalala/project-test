@@ -29,7 +29,6 @@ const REPORT_DIR   = 'lighthouse-report';
 
 const PAGE_LABELS = {
     'main':        'Main Page',
-    'pizzas':      'Pizzas Page',
     'admin-login': 'Admin Login Page',
 };
 
