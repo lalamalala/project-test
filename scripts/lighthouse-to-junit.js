@@ -29,6 +29,7 @@ const REPORT_DIR   = 'lighthouse-report';
 
 const PAGE_LABELS = {
     'main':        'Main Page',
+    'pizzas':      'Pizzas Page',
     'admin-login': 'Admin Login Page',
 };
 
@@ -84,8 +85,16 @@ function getFailedAudits(lhData, catId, max) {
 
 // â”€â”€ Find report files â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-const FILE_RE = /^lh-(.+)\.report\.json$/;
-const files   = fs.readdirSync('.').filter(f => FILE_RE.test(f)).sort();
+const FILE_RE   = /^lh-(.+)\.report\.json$/;
+// Sort by position in PAGE_LABELS so pages always appear in the defined order
+// (main → admin-login). Files not in PAGE_LABELS go to the end alphabetically.
+const PAGE_ORDER = Object.fromEntries(Object.keys(PAGE_LABELS).map((k, i) => [k, i]));
+const files = fs.readdirSync('.')
+    .filter(f => FILE_RE.test(f))
+    .sort((a, b) => {
+        const na = a.match(FILE_RE)[1], nb = b.match(FILE_RE)[1];
+        return (PAGE_ORDER[na] ?? 99) - (PAGE_ORDER[nb] ?? 99) || a.localeCompare(b);
+    });
 
 if (!fs.existsSync(REPORT_DIR)) fs.mkdirSync(REPORT_DIR);
 

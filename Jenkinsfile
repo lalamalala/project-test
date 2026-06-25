@@ -134,6 +134,7 @@ pipeline {
 
                     def pages = [
                         [name: 'main',        url: "${params.BASE_URL}/"],
+                        [name: 'pizzas',      url: "${params.BASE_URL}/pizzas"],
                         [name: 'admin-login', url: "${params.BASE_URL}/admin"],
                     ]
 
