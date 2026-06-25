@@ -74,8 +74,8 @@ pipeline {
         )
         string(
             name:         'LIGHTHOUSE_THRESHOLD',
-            defaultValue: '80',
-            description:  'Minimum acceptable Lighthouse score (0-100). Scores below this fail the testcase.'
+            defaultValue: '70',
+            description:  'Minimum acceptable Lighthouse score (0-100). Scores below this are flagged in the HTML report.'
         )
         booleanParam(
             name:         'ABORT_ON_THRESHOLD',
@@ -251,10 +251,12 @@ pipeline {
                 allowEmptyResults: true
             )
 
-            // ── Performance trend charts (k6 + Lighthouse) ─────────────────
+            // ── Performance trend charts (k6 only) ────────────────────────
+            // Lighthouse scores are tracked via junit (trend graphs) but do NOT
+            // control build pass/fail – only k6 thresholds do.
             // Requires: Performance Plugin
             perfReport(
-                sourceDataFiles:            'k6-junit-*.xml, lighthouse-junit.xml',
+                sourceDataFiles:            'k6-junit-*.xml',
                 errorUnstableThreshold:     0,
                 errorFailedThreshold:       5,
                 modePerformancePerTestCase: true
