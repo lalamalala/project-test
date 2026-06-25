@@ -130,10 +130,6 @@ pipeline {
             steps {
                 script {
                     bat 'node --version'
-                    // Create a workspace-local temp dir.
-                    // Jenkins service accounts often lack delete permission on
-                    // C:\WINDOWS\TEMP, which causes Chrome/Lighthouse to throw EPERM
-                    // on cleanup. Redirecting TEMP/TMP to the workspace fixes this.
                     bat 'if not exist chrome-temp mkdir chrome-temp'
 
                     def pages = [
@@ -147,12 +143,26 @@ pipeline {
                             "TEMP=${env.WORKSPACE}\\chrome-temp",
                             "TMP=${env.WORKSPACE}\\chrome-temp",
                         ]) {
-                            // --user-data-dir keeps Chrome profile data in the workspace too
-                            bat "npx --yes lighthouse ${page.url}" +
+                            // Capture exit code: on Windows, Lighthouse often exits 1 due to
+                            // EPERM when chrome-launcher tries to rmSync its own temp dir
+                            // (chrome-launcher bug on Windows service accounts).
+                            // The HTML/JSON reports are written BEFORE cleanup, so exit code 1
+                            // is safe to ignore as long as the report file was actually created.
+                            def lhExit = bat(returnStatus: true, script:
+                                "npx --yes lighthouse ${page.url}" +
                                 " --output html --output json" +
                                 " --output-path lh-${page.name}" +
                                 " --chrome-flags=\"--headless --no-sandbox --disable-gpu --user-data-dir=chrome-tmp\"" +
                                 " --quiet"
+                            )
+                            if (lhExit != 0) {
+                                def missing = bat(returnStatus: true,
+                                    script: "if not exist lh-${page.name}.report.json exit 1")
+                                if (missing != 0) {
+                                    error "Lighthouse failed for ${page.url}: report not generated (exit ${lhExit})"
+                                }
+                                echo "WARNING: Lighthouse exited ${lhExit} (EPERM on temp cleanup – known Windows issue). Report generated OK."
+                            }
                         }
                     }
 

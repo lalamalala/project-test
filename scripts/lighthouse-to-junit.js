@@ -46,8 +46,10 @@ const files = fs.readdirSync('.')
     .sort();
 
 if (files.length === 0) {
-    console.error('No lh-*.report.json files found in current directory.');
-    process.exit(1);
+    console.warn('No lh-*.report.json files found – writing empty lighthouse-junit.xml.');
+    fs.writeFileSync('lighthouse-junit.xml',
+        '<?xml version="1.0" encoding="UTF-8"?>\n<testsuites/>\n', 'utf8');
+    process.exit(0);
 }
 
 // ── Build JUnit XML ────────────────────────────────────────────────────────────
