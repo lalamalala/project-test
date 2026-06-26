@@ -291,8 +291,12 @@ pipeline {
             // kept as downloadable artifacts only.
             // lighthouse-report/ contains summary.html + lh-style.css (CSS in a
             // separate file so Jenkins style-src 'self' CSP allows it).
+            script {
+                bat(returnStatus: true, script: 'node scripts/k6-trend.js')
+            }
+
             archiveArtifacts(
-                artifacts:         'k6-report-*.json, k6-report-*.html, k6-junit-*.xml, lh-*.report.html, lh-*.report.json, lighthouse-junit.xml, lighthouse-report/**, lighthouse-scores-prev.json',
+                artifacts:         'k6-report-*.json, k6-report-*.html, k6-junit-*.xml, k6-metrics-*.json, k6-trend-prev.json, k6-trend-report/**, lh-*.report.html, lh-*.report.json, lighthouse-junit.xml, lighthouse-report/**, lighthouse-scores-prev.json',
                 allowEmptyArchive: true
             )
 
@@ -305,6 +309,15 @@ pipeline {
             // ── Performance Plugin removed ───────────────────────────
             // perfReport removed: it adds a trend widget to the project main page
             // that clutters the Status view. Trend data is tracked via junit step above.
+
+            publishHTML(target: [
+                allowMissing:          true,
+                alwaysLinkToLastBuild: true,
+                keepAll:               true,
+                reportDir:             'k6-trend-report',
+                reportFiles:           'trend.html',
+                reportName:            'k6 Performance Trend',
+            ])
 
             // ── k6 HTML reports ────────────────────────────────────────────
             // Requires: HTML Publisher Plugin

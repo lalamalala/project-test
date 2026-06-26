@@ -135,9 +135,19 @@ function generateJUnitXml(data) {
 
 export function handleSummary(data) {
     const type = __ENV.TEST_TYPE || 'smoke';
+    const metrics = {
+        duration_ms: Math.round(data.state.testRunDuration),
+        avg_ms:      Math.round(data.metrics['http_req_duration']?.values?.avg || 0),
+        p95_ms:      Math.round(data.metrics['http_req_duration']?.values?.['p(95)'] || 0),
+        max_ms:      Math.round(data.metrics['http_req_duration']?.values?.max || 0),
+        err_rate:    parseFloat((data.metrics['http_req_failed']?.values?.rate || 0).toFixed(4)),
+        iterations:  data.metrics['iterations']?.values?.count || 0,
+        vus_max:     data.metrics['vus_max']?.values?.max || 0,
+    };
     return {
-        [`k6-report-${type}.html`]: htmlReport(data),
-        [`k6-junit-${type}.xml`]:   generateJUnitXml(data),
+        [`k6-report-${type}.html`]:  htmlReport(data),
+        [`k6-junit-${type}.xml`]:    generateJUnitXml(data),
+        [`k6-metrics-${type}.json`]: JSON.stringify(metrics, null, 2),
         stdout: textSummary(data, { indent: ' ', enableColors: false }),
     };
 }
