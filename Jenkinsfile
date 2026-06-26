@@ -315,6 +315,7 @@ pipeline {
             // separate file so Jenkins style-src 'self' CSP allows it).
             script {
                 bat(returnStatus: true, script: 'node performance-tests\\k6\\trend.js')
+                bat(returnStatus: true, script: 'node performance-tests\\playwright\\to-html.js')
             }
 
             archiveArtifacts(
@@ -331,6 +332,15 @@ pipeline {
             // ── Performance Plugin removed ───────────────────────────
             // perfReport removed: it adds a trend widget to the project main page
             // that clutters the Status view. Trend data is tracked via junit step above.
+
+            publishHTML(target: [
+                allowMissing:          true,
+                alwaysLinkToLastBuild: true,
+                keepAll:               true,
+                reportDir:             'performance-tests/reports/playwright',
+                reportFiles:           'summary.html',
+                reportName:            'Playwright Performance Report',
+            ])
 
             publishHTML(target: [
                 allowMissing:          true,

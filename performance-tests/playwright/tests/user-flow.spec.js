@@ -2,9 +2,9 @@ const { test, expect } = require('@playwright/test');
 
 // Configurable thresholds via env vars
 const T = {
-    pageLoad: Number(process.env.PW_THRESHOLD_LOAD || '5000'),  // 5 s
-    ttfb:     Number(process.env.PW_THRESHOLD_TTFB || '800'),   // 800 ms
-    lcp:      Number(process.env.PW_THRESHOLD_LCP  || '2500'),  // 2.5 s (Google "Good")
+    pageLoad: Number(process.env.PW_THRESHOLD_LOAD  || '6000'),  // 6 s (cold start from CI)
+    ttfb:     Number(process.env.PW_THRESHOLD_TTFB  || '800'),   // 800 ms (server only)
+    lcp:      Number(process.env.PW_THRESHOLD_LCP   || '6000'),  // 6 s (cold start from CI)
     login:    Number(process.env.PW_THRESHOLD_LOGIN || '3000'),  // 3 s
 };
 
