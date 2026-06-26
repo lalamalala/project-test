@@ -226,16 +226,17 @@ pipeline {
         stage('Playwright tests') {
             steps {
                 script {
-                    dir('performance-tests\\playwright') {
-                        bat 'npm install'
-                        bat 'npx playwright install chromium'
-                        def pwExit = bat(returnStatus: true, script:
-                            "npx playwright test" +
-                            " -e BASE_URL=${params.BASE_URL}" +
-                            " -e PW_ADMIN_USER=${params.ADMIN_USER}"
-                        )
-                        if (pwExit != 0) {
-                            unstable('Playwright: some page-performance assertions failed — check the report.')
+                    withEnv([
+                        "BASE_URL=${params.BASE_URL}",
+                        "PW_ADMIN_USER=${params.ADMIN_USER}",
+                    ]) {
+                        dir('performance-tests\\playwright') {
+                            bat 'npm install'
+                            bat 'npx playwright install chromium'
+                            def pwExit = bat(returnStatus: true, script: 'npx playwright test')
+                            if (pwExit != 0) {
+                                unstable('Playwright: some page-performance assertions failed — check the report.')
+                            }
                         }
                     }
                 }
