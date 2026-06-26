@@ -1,0 +1,5 @@
+[
+  { "name": "main",        "label": "Main Page",             "path": "/" },
+  { "name": "admin-login", "label": "Admin Login Page",      "path": "/admin" },
+  { "name": "admin",       "label": "Admin Page (Auth)",     "path": "/admin", "requiresAuth": true }
+]

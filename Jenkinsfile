@@ -178,7 +178,7 @@ pipeline {
                     }
 
                     // Convert Lighthouse JSON → JUnit XML for Jenkins trend charts
-                    bat "node scripts/lighthouse-to-junit.js ${params.LIGHTHOUSE_THRESHOLD}"
+                    bat "node performance-tests\\lighthouse\\to-junit.js ${params.LIGHTHOUSE_THRESHOLD}"
 
                     // ── Authenticated admin page audit ─────────────────────
                     // Requires 'quickpizza-admin-password' Jenkins credential.
@@ -189,7 +189,7 @@ pipeline {
                             variable:      'QP_ADMIN_PASS'
                         )]) {
                             echo "Getting QuickPizza auth token for admin page audit ..."
-                            bat "node scripts/get-auth-headers.js ${params.BASE_URL} ${params.ADMIN_USER} %QP_ADMIN_PASS% lh-auth-headers.json"
+                            bat "node performance-tests\\lighthouse\\get-auth-headers.js ${params.BASE_URL} ${params.ADMIN_USER} %QP_ADMIN_PASS% lh-auth-headers.json"
 
                             withEnv([
                                 "TEMP=${env.WORKSPACE}\\chrome-temp",
@@ -214,10 +214,29 @@ pipeline {
                                 }
                             }
                             // Re-run the converter to include the new lh-admin.report.json
-                            bat "node scripts/lighthouse-to-junit.js ${params.LIGHTHOUSE_THRESHOLD}"
+                            bat "node performance-tests\\lighthouse\\to-junit.js ${params.LIGHTHOUSE_THRESHOLD}"
                         }
                     } catch (e) {
                         echo "INFO: Skipping authenticated admin page audit (quickpizza-admin-password credential not found)."
+                    }
+                }
+            }
+        }
+
+        stage('Playwright tests') {
+            steps {
+                script {
+                    dir('performance-tests\\playwright') {
+                        bat 'npm install'
+                        bat 'npx playwright install chromium'
+                        def pwExit = bat(returnStatus: true, script:
+                            "npx playwright test" +
+                            " -e BASE_URL=${params.BASE_URL}" +
+                            " -e PW_ADMIN_USER=${params.ADMIN_USER}"
+                        )
+                        if (pwExit != 0) {
+                            unstable('Playwright: some page-performance assertions failed — check the report.')
+                        }
                     }
                 }
             }
@@ -240,7 +259,7 @@ pipeline {
                         '-e TEST_TYPE=smoke',
                         "-e SMOKE_VUS=${params.SMOKE_VUS}",
                         "-e SMOKE_STEADY_TIME=${params.SMOKE_STEADY_TIME}",
-                        'tests\\quickpizza.js',
+                        'performance-tests\\k6\\tests\\quickpizza.js',
                     ])
                     def exitCode = bat(returnStatus: true, script: cmdParts.join(' ^\n        '))
                     if (exitCode == 99 && !params.ABORT_ON_THRESHOLD) {
@@ -270,7 +289,7 @@ pipeline {
                         "-e LOAD_VUS=${params.LOAD_VUS}",
                         "-e LOAD_RAMP_TIME=${params.LOAD_RAMP_TIME}",
                         "-e LOAD_STEADY_TIME=${params.LOAD_STEADY_TIME}",
-                        'tests\\quickpizza.js',
+                        'performance-tests\\k6\\tests\\quickpizza.js',
                     ])
                     def exitCode = bat(returnStatus: true, script: cmdParts.join(' ^\n        '))
                     if (exitCode == 99 && !params.ABORT_ON_THRESHOLD) {
@@ -292,17 +311,17 @@ pipeline {
             // lighthouse-report/ contains summary.html + lh-style.css (CSS in a
             // separate file so Jenkins style-src 'self' CSP allows it).
             script {
-                bat(returnStatus: true, script: 'node scripts/k6-trend.js')
+                bat(returnStatus: true, script: 'node performance-tests\\k6\\trend.js')
             }
 
             archiveArtifacts(
-                artifacts:         'k6-report-*.json, k6-report-*.html, k6-junit-*.xml, k6-metrics-*.json, k6-trend-prev.json, k6-trend-report/**, lh-*.report.html, lh-*.report.json, lighthouse-junit.xml, lighthouse-report/**, lighthouse-scores-prev.json',
+                artifacts:         'k6-report-*.json, k6-report-*.html, k6-junit-*.xml, k6-metrics-*.json, k6-trend-prev.json, k6-trend-report/**, lh-*.report.html, lh-*.report.json, lighthouse-junit.xml, lighthouse-report/**, lighthouse-scores-prev.json, performance-tests/reports/playwright/**',
                 allowEmptyArchive: true
             )
 
             // ── JUnit trend (k6 checks + Lighthouse scores) ────────────────
             junit(
-                testResults:       'k6-junit-*.xml, lighthouse-junit.xml',
+                testResults:       'k6-junit-*.xml, lighthouse-junit.xml, performance-tests/reports/playwright/results.xml',
                 allowEmptyResults: true
             )
 
