@@ -1,4 +1,9 @@
 const { test, expect } = require('@playwright/test');
+const fs   = require('fs');
+const path = require('path');
+
+const METRICS_DIR  = path.resolve(__dirname, '../../reports/playwright');
+const METRICS_FILE = path.join(METRICS_DIR, 'metrics.json');
 
 // Configurable thresholds via env vars
 const T = {
@@ -7,6 +12,9 @@ const T = {
     lcp:      Number(process.env.PW_THRESHOLD_LCP   || '6000'),  // 6 s (cold start from CI)
     login:    Number(process.env.PW_THRESHOLD_LOGIN || '3000'),  // 3 s
 };
+
+// Metrics collected per test; written to metrics.json in afterAll
+const metricsLog = {};
 
 // --- helpers -----------------------------------------------------------------
 
@@ -55,7 +63,29 @@ function logMetrics(label, timing, extra = {}) {
 
 test.describe('QuickPizza – Page Transition Performance', () => {
 
+    test.afterEach(async ({}, testInfo) => {
+        const entry = metricsLog[testInfo.title];
+        if (entry) {
+            entry.passed  = testInfo.status === 'passed';
+            entry.failMsg = testInfo.error?.message?.split('\n')[0] ?? null;
+        }
+    });
+
+    test.afterAll(() => {
+        try {
+            if (!fs.existsSync(METRICS_DIR)) fs.mkdirSync(METRICS_DIR, { recursive: true });
+            fs.writeFileSync(METRICS_FILE, JSON.stringify({
+                generatedAt: new Date().toISOString(),
+                thresholds:  T,
+                tests:       Object.values(metricsLog),
+            }, null, 2), 'utf8');
+        } catch (e) {
+            console.warn('metrics.json write failed:', e.message);
+        }
+    });
+
     test('1. Main page load', async ({ page }) => {
+        const entry = metricsLog['1. Main page load'] = { name: '1. Main page load', url: '/' };
         await page.goto('/');
         await page.waitForLoadState('networkidle');
 
@@ -63,6 +93,14 @@ test.describe('QuickPizza – Page Transition Performance', () => {
         const lcp    = await getLCP(page);
 
         logMetrics('Main /', timing, { LCP: lcp });
+
+        entry.ttfb           = timing?.ttfb           ?? null;
+        entry.domInteractive = timing?.domInteractive  ?? null;
+        entry.domComplete    = timing?.domComplete     ?? null;
+        entry.pageLoad       = timing?.pageLoad        ?? null;
+        entry.lcp            = lcp;
+        entry.transition     = null;
+        entry.actionMs       = null;
 
         await expect(page).toHaveTitle(/.+/);
 
@@ -76,6 +114,10 @@ test.describe('QuickPizza – Page Transition Performance', () => {
     });
 
     test('2. Navigate to Admin Login page', async ({ page }) => {
+        const entry = metricsLog['2. Navigate to Admin Login page'] = {
+            name: '2. Navigate to Admin Login page', url: '/admin',
+        };
+
         // Start from main, navigate to /admin — measures the full transition including
         // navigation intent → new page ready (wall-clock user perception time).
         await page.goto('/');
@@ -90,6 +132,14 @@ test.describe('QuickPizza – Page Transition Performance', () => {
         const lcp    = await getLCP(page);
 
         logMetrics('/admin', timing, { 'Transition': transitionMs, LCP: lcp });
+
+        entry.ttfb           = timing?.ttfb           ?? null;
+        entry.domInteractive = timing?.domInteractive  ?? null;
+        entry.domComplete    = timing?.domComplete     ?? null;
+        entry.pageLoad       = timing?.pageLoad        ?? null;
+        entry.lcp            = lcp;
+        entry.transition     = transitionMs;
+        entry.actionMs       = null;
 
         // Page must show a login form
         await expect(
@@ -107,6 +157,10 @@ test.describe('QuickPizza – Page Transition Performance', () => {
     });
 
     test('3. Login form submission response time', async ({ page }) => {
+        const entry = metricsLog['3. Login form submission response time'] = {
+            name: '3. Login form submission response time', url: '/admin (submit)',
+        };
+
         const username = process.env.PW_ADMIN_USER || 'admin';
         const password = process.env.PW_ADMIN_PASS || 'admin';
 
@@ -127,6 +181,14 @@ test.describe('QuickPizza – Page Transition Performance', () => {
 
         const timing = await getNavTiming(page);
         logMetrics('Login submit', timing, { 'Action time': loginMs });
+
+        entry.ttfb           = timing?.ttfb           ?? null;
+        entry.domInteractive = timing?.domInteractive  ?? null;
+        entry.domComplete    = timing?.domComplete     ?? null;
+        entry.pageLoad       = timing?.pageLoad        ?? null;
+        entry.lcp            = null;
+        entry.transition     = null;
+        entry.actionMs       = loginMs;
 
         expect(loginMs, `Login response < ${T.login}ms`).toBeLessThan(T.login);
     });
