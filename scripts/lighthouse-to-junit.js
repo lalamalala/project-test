@@ -40,8 +40,6 @@ const CATEGORIES = [
     { id: 'seo',            label: 'SEO'            },
 ];
 
-// â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
 function scoreClass(s) { return s >= 90 ? 'good' : s >= 50 ? 'avg' : 'bad'; }
 
 function deltaHtml(score, prev) {
@@ -60,7 +58,6 @@ function cleanDesc(desc) {
     return s.trim().slice(0, 220);
 }
 
-/** Return top failing audits for a category, sorted by impact (weight Ã— failure). */
 function getFailedAudits(lhData, catId, max) {
     const cat = lhData.categories[catId];
     if (!cat) return [];
@@ -83,11 +80,7 @@ function getFailedAudits(lhData, catId, max) {
         .slice(0, max || 6);
 }
 
-// â”€â”€ Find report files â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
 const FILE_RE   = /^lh-(.+)\.report\.json$/;
-// Sort by position in PAGE_LABELS so pages always appear in the defined order
-// (main → admin-login). Files not in PAGE_LABELS go to the end alphabetically.
 const PAGE_ORDER = Object.fromEntries(Object.keys(PAGE_LABELS).map((k, i) => [k, i]));
 const files = fs.readdirSync('.')
     .filter(f => FILE_RE.test(f))
@@ -107,8 +100,6 @@ if (files.length === 0) {
     process.exit(0);
 }
 
-// â”€â”€ Load previous scores for delta â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
 let prevData = null;
 try {
     prevData = JSON.parse(fs.readFileSync(HISTORY_FILE, 'utf8'));
@@ -116,8 +107,6 @@ try {
 } catch (_) {
     console.log('[Lighthouse] No previous scores â€“ first run or clean workspace.');
 }
-
-// â”€â”€ Collect scores and audit recommendations â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const allPages = [];
 
@@ -151,8 +140,6 @@ for (const file of files) {
     console.log(`[Lighthouse] ${label} â†’ ${scoreStr}`);
 }
 
-// â”€â”€ Generate JUnit XML â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
 let suitesXml = '';
 for (const { pageName, label, results } of allPages) {
     const failures = results.filter(r => r.score < threshold).length;
@@ -179,8 +166,6 @@ for (const { pageName, label, results } of allPages) {
 fs.writeFileSync('lighthouse-junit.xml',
     `<?xml version="1.0" encoding="UTF-8"?>\n<testsuites>\n${suitesXml}</testsuites>\n`, 'utf8');
 
-// â”€â”€ CSS (external file â€“ served from same origin, allowed by Jenkins CSP) â”€â”€â”€â”€â”€
-
 const CSS = `
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body {
@@ -199,7 +184,6 @@ h1 { font-size: 1.7rem; font-weight: 800; color: #1a1a2e; margin-bottom: .4rem; 
 }
 .prev-line { color: #777; font-style: italic; }
 
-/* â”€â”€ Page card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .card {
   background: #fff; border-radius: 12px; padding: 1.4rem 1.6rem;
   margin-bottom: 1.2rem; box-shadow: 0 2px 10px rgba(0,0,0,.08);
@@ -218,7 +202,6 @@ h1 { font-size: 1.7rem; font-weight: 800; color: #1a1a2e; margin-bottom: .4rem; 
 .badge-pass { background: #e6faf0; color: #0a6b3a; border: 1px solid #0cce6b; }
 .badge-fail { background: #fff0ef; color: #a81a0e; border: 1px solid #ff4e42; }
 
-/* â”€â”€ Score circles â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .circles {
   display: flex; flex-wrap: wrap; gap: 1.4rem;
   padding-bottom: 1.4rem; border-bottom: 1px solid #f0f0f0; margin-bottom: 1.4rem;
@@ -243,7 +226,6 @@ h1 { font-size: 1.7rem; font-weight: 800; color: #1a1a2e; margin-bottom: .4rem; 
   text-transform: uppercase; letter-spacing: .05em; text-align: center;
 }
 
-/* â”€â”€ Recommendations â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .recs-title {
   font-size: .95rem; font-weight: 700; color: #444; margin-bottom: .8rem;
 }
@@ -268,8 +250,6 @@ h1 { font-size: 1.7rem; font-weight: 800; color: #1a1a2e; margin-bottom: .4rem; 
 
 .no-recs { font-size: .85rem; color: #aaa; font-style: italic; padding: .3rem 0; }
 
-
-/* -- Collapsible recommendations (CSS checkbox trick, no JS) -------------- */
 .rec-toggle { display: none; }
 .rec-body   { display: none; }
 .rec-toggle:checked + .recs-header + .rec-body { display: block; }
@@ -284,7 +264,6 @@ h1 { font-size: 1.7rem; font-weight: 800; color: #1a1a2e; margin-bottom: .4rem; 
 .toggle-arrow { margin-left: auto; font-size: .8rem; color: #aaa; }
 .rec-body { padding-top: .6rem; }
 
-/* -- Summary table --------------------------------------------------------- */
 .summary-wrap {
   background: #fff; border-radius: 12px; padding: 1.2rem 1.6rem;
   margin-bottom: 1.4rem; box-shadow: 0 2px 10px rgba(0,0,0,.08);
@@ -306,7 +285,6 @@ h1 { font-size: 1.7rem; font-weight: 800; color: #1a1a2e; margin-bottom: .4rem; 
 .summary-table td.st-fail { color: #a81a0e; }
 .tbl-score { font-size: 1.05rem; font-weight: 800; }
 .tbl-prev  { font-size: .7rem; color: #bbb; font-weight: 400; }
-/* â”€â”€ Legend â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .legend {
   margin-top: 1.4rem; background: #fff; border-radius: 10px;
   padding: .9rem 1.4rem; box-shadow: 0 1px 5px rgba(0,0,0,.06);
@@ -319,8 +297,6 @@ h1 { font-size: 1.7rem; font-weight: 800; color: #1a1a2e; margin-bottom: .4rem; 
 .dot-r { background: #ff4e42; }
 `.trim();
 
-// â”€â”€ Build HTML â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
 const date = new Date().toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
 
 const cards = allPages.map(({ pageName, label, url, results }) => {
@@ -329,7 +305,6 @@ const cards = allPages.map(({ pageName, label, url, results }) => {
     const badgeCls = pass ? 'badge-pass' : 'badge-fail';
     const badgeTxt = pass ? 'PASS' : 'FAIL';
 
-    // Score circles
     const circles = results.map(({ label: catLabel, score, prev }) => {
         const sc  = scoreClass(score);
         const dh  = deltaHtml(score, prev);
@@ -344,7 +319,6 @@ const cards = allPages.map(({ pageName, label, url, results }) => {
         </div>`;
     }).join('');
 
-    // Recommendation items per category
     const recGroups = results
         .filter(r => r.failed.length > 0)
         .map(({ label: catLabel, score, failed }) => {
@@ -401,7 +375,6 @@ const prevLine = prevData
     ? `&#128257;&nbsp;Compared to: <strong>${prevData.buildInfo || prevData.timestamp}</strong>`
     : `&#128310;&nbsp;No previous build data &mdash; delta will appear from next run`;
 
-// Summary table rows
 const summaryRows = allPages.map(({ label, results }) => {
     const pass = results.every(r => r.score >= threshold);
     const cells = results.map(({ score, prev }) => {
@@ -456,12 +429,9 @@ ${cards}
 </body>
 </html>`;
 
-// â”€â”€ Write output files â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
 fs.writeFileSync(path.join(REPORT_DIR, 'lh-style.css'), CSS,  'utf8');
 fs.writeFileSync(path.join(REPORT_DIR, 'summary.html'), HTML, 'utf8');
 
-// Save current scores for next build comparison
 const currentScores = {};
 for (const { pageName, results } of allPages) {
     currentScores[pageName] = {};
