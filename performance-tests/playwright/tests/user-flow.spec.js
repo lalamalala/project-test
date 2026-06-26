@@ -15,7 +15,8 @@ async function getNavTiming(page) {
         const [nav] = performance.getEntriesByType('navigation');
         if (!nav) return null;
         return {
-            ttfb:           Math.round(nav.responseStart  - nav.startTime),
+            // TTFB = server response time only (excludes DNS + TLS on cold start)
+            ttfb:           Math.round(nav.responseStart  - nav.requestStart),
             domInteractive: Math.round(nav.domInteractive - nav.startTime),
             domComplete:    Math.round(nav.domComplete    - nav.startTime),
             pageLoad:       Math.round(nav.loadEventEnd   - nav.startTime),

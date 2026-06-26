@@ -252,6 +252,7 @@ pipeline {
                     def reportJson = "k6-report-smoke-${env.BUILD_NUMBER}.json"
                     def cmdParts = [
                         'k6 run',
+                        '--quiet',
                         "--out json=${reportJson}",
                     ]
                     if (params.SEND_TO_CLOUD) { cmdParts << '--out cloud' }
@@ -281,6 +282,7 @@ pipeline {
                     def reportJson = "k6-report-load-${env.BUILD_NUMBER}.json"
                     def cmdParts = [
                         'k6 run',
+                        '--quiet',
                         "--out json=${reportJson}",
                     ]
                     if (params.SEND_TO_CLOUD) { cmdParts << '--out cloud' }
