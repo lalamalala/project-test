@@ -45,8 +45,9 @@ function sevClass(v, good, warn) {
 const SEV = {
     ttfb:        [200,  800],
     domComplete: [1500, 3500],
+    fcp:         [1800, 3000],  // Core Web Vital: Good < 1.8s
     pageLoad:    [2000, 5000],
-    lcp:         [2500, 4000],
+    lcp:         [2500, 4000],  // Core Web Vital: Good < 2.5s
     transition:  [1000, 2500],
     actionMs:    [500,  1500],
 };
@@ -136,6 +137,8 @@ function buildRows() {
       ${metricCell(t.ttfb,         SEV.ttfb[0],        SEV.ttfb[1])}
       ${deltaCell( t.ttfb,         prev.ttfb)}
       ${metricCell(t.domComplete,  SEV.domComplete[0],  SEV.domComplete[1])}
+      ${metricCell(t.fcp,           SEV.fcp[0],           SEV.fcp[1])}
+      ${deltaCell( t.fcp,           prev.fcp)}
       ${metricCell(t.pageLoad,     SEV.pageLoad[0],     SEV.pageLoad[1])}
       ${deltaCell( t.pageLoad,     prev.pageLoad)}
       ${metricCell(t.lcp,          SEV.lcp[0],          SEV.lcp[1])}
@@ -146,16 +149,13 @@ function buildRows() {
     </tr>`;
         }).join('');
     }
-    return junitCases.map((c, i) => {
-        const prev = prevData && prevData.tests && prevData.tests[i] ? prevData.tests[i] : {};
-        return `
+    return junitCases.map(c => `
     <tr class="${c.failed ? 'row-fail' : 'row-pass'}">
       <td class="name">${esc(c.name)}</td>
       <td class="${c.failed ? 'fail' : 'pass'} icon">${c.failed ? '&#10007;' : '&#10003;'}</td>
       <td class="dur">${c.time.toFixed(2)}s</td>
-      <td colspan="10" class="${c.failed ? 'fail-msg' : 'na'}">${esc((c.failMsg || '').slice(0, 250) || '—')}</td>
-    </tr>`;
-    }).join('');
+      <td colspan="12" class="${c.failed ? 'fail-msg' : 'na'}">${esc((c.failMsg || '').slice(0, 250) || '—')}</td>
+    </tr>`).join('');
 }
 
 // ---------------------------------------------------------------------------
@@ -163,8 +163,8 @@ function buildRows() {
 // ---------------------------------------------------------------------------
 function buildThresholdsTable() {
     if (!thresholds) return '';
-    const labels = { pageLoad: 'Page Load / Transition', ttfb: 'TTFB (server time)', lcp: 'LCP', login: 'Login action' };
-    const wv     = { pageLoad: '&lt; 3000ms', ttfb: '&lt; 200ms', lcp: '&lt; 2500ms', login: '—' };
+    const labels = { pageLoad: 'Page Load / Transition', ttfb: 'TTFB (server time)', fcp: 'FCP', lcp: 'LCP', login: 'Login action' };
+    const wv     = { pageLoad: '&lt; 3000ms', ttfb: '&lt; 200ms', fcp: '&lt; 1800ms', lcp: '&lt; 2500ms', login: '—' };
     const rows   = Object.entries(thresholds).map(([k, v]) =>
         `<tr><td>${labels[k] || k}</td><td class="thr-v">${fmt(v)}</td><td class="wv-v">${wv[k] || '—'}</td></tr>`
     ).join('');
@@ -208,6 +208,15 @@ function buildRecommendations() {
             } else if (t.ttfb >= 200) {
                 recs.push({ sev: 'info', metric: 'TTFB', test: t.name, val: fmt(t.ttfb),
                     body: `TTFB is <strong>${fmt(t.ttfb)}</strong> — acceptable but above the Google "Good" limit of 200ms. A CDN or application-level response cache (Redis, Varnish) could reduce this below 200ms.` });
+            }
+        }
+        if (t.fcp !== null && t.fcp !== undefined) {
+            if (t.fcp >= 3000) {
+                recs.push({ sev: 'crit', metric: 'FCP', test: t.name, val: fmt(t.fcp),
+                    body: `First Contentful Paint is <strong>${fmt(t.fcp)}</strong> — rated <em>Poor</em> (&ge;3000ms). Users see nothing for over 3 seconds. <ul><li>Eliminate render-blocking resources (CSS/JS in <code>&lt;head&gt;</code>).</li><li>Inline critical CSS and defer the rest.</li><li>Reduce server response time (TTFB affects FCP directly).</li></ul>` });
+            } else if (t.fcp >= 1800) {
+                recs.push({ sev: 'warn', metric: 'FCP', test: t.name, val: fmt(t.fcp),
+                    body: `FCP is <strong>${fmt(t.fcp)}</strong> — <em>Needs Improvement</em> (1800–3000ms). Inline the critical-path CSS or use <code>&lt;link rel="preload"&gt;</code> for key fonts and styles.` });
             }
         }
         if (t.domComplete !== null && t.domComplete !== undefined && t.domComplete >= 3500) {
@@ -343,6 +352,7 @@ const theadRow = hasDetail ? `
       <th rowspan="2">Duration</th>
       <th colspan="2" class="col-group">TTFB</th>
       <th rowspan="2">DOM</th>
+      <th colspan="2" class="col-group">FCP</th>
       <th colspan="2" class="col-group">Page Load</th>
       <th colspan="2" class="col-group">LCP</th>
       <th rowspan="2">Transition</th>
@@ -350,6 +360,7 @@ const theadRow = hasDetail ? `
       <th rowspan="2">Details</th>
     </tr>
     <tr>
+      <th>Value</th><th>&Delta; prev</th>
       <th>Value</th><th>&Delta; prev</th>
       <th>Value</th><th>&Delta; prev</th>
       <th>Value</th><th>&Delta; prev</th>
@@ -406,7 +417,7 @@ fs.writeFileSync(HTML_FILE, HTML, 'utf8');
 const saveTests = detailedTests
     ? detailedTests.map(t => ({
         name: t.name, ttfb: t.ttfb, domComplete: t.domComplete,
-        pageLoad: t.pageLoad, lcp: t.lcp, transition: t.transition, actionMs: t.actionMs,
+        fcp: t.fcp, pageLoad: t.pageLoad, lcp: t.lcp, transition: t.transition, actionMs: t.actionMs,
     }))
     : junitCases.map(c => ({ name: c.name }));
 
