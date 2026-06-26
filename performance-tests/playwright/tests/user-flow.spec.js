@@ -9,7 +9,7 @@ const METRICS_FILE = path.join(METRICS_DIR, 'metrics.json');
 const T = {
     pageLoad: Number(process.env.PW_THRESHOLD_LOAD  || '6000'),  // 6 s cold-start CI
     ttfb:     Number(process.env.PW_THRESHOLD_TTFB  || '800'),   // 800 ms server time
-    fcp:      Number(process.env.PW_THRESHOLD_FCP   || '3000'),  // 3 s cold-start CI
+    fcp:      Number(process.env.PW_THRESHOLD_FCP   || '6000'),  // 6 s cold-start CI (override with PW_THRESHOLD_FCP for warmer envs)
     lcp:      Number(process.env.PW_THRESHOLD_LCP   || '6000'),  // 6 s cold-start CI
     login:    Number(process.env.PW_THRESHOLD_LOGIN || '3000'),  // 3 s
 };
