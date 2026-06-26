@@ -302,16 +302,9 @@ pipeline {
                 allowEmptyResults: true
             )
 
-            // ── Performance trend charts (k6 only) ────────────────────────
-            // Lighthouse scores are tracked via junit (trend graphs) but do NOT
-            // control build pass/fail – only k6 thresholds do.
-            // Requires: Performance Plugin
-            perfReport(
-                sourceDataFiles:            'k6-junit-*.xml',
-                errorUnstableThreshold:     0,
-                errorFailedThreshold:       5,
-                modePerformancePerTestCase: true
-            )
+            // ── Performance Plugin removed ───────────────────────────
+            // perfReport removed: it adds a trend widget to the project main page
+            // that clutters the Status view. Trend data is tracked via junit step above.
 
             // ── k6 HTML reports ────────────────────────────────────────────
             // Requires: HTML Publisher Plugin

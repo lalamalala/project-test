@@ -304,7 +304,8 @@ h1 { font-size: 1.7rem; font-weight: 800; color: #1a1a2e; margin-bottom: .4rem; 
 .summary-table td.bad  { color: #a81a0e; background: #fff5f5; }
 .summary-table td.st-pass { color: #0a6b3a; }
 .summary-table td.st-fail { color: #a81a0e; }
-.summary-table small { font-size: .72rem; font-weight: 400; opacity: .85; }
+.tbl-score { font-size: 1.05rem; font-weight: 800; }
+.tbl-prev  { font-size: .7rem; color: #bbb; font-weight: 400; }
 /* â”€â”€ Legend â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .legend {
   margin-top: 1.4rem; background: #fff; border-radius: 10px;
@@ -404,12 +405,14 @@ const prevLine = prevData
 const summaryRows = allPages.map(({ label, results }) => {
     const pass = results.every(r => r.score >= threshold);
     const cells = results.map(({ score, prev }) => {
-        const sc = scoreClass(score);
-        const dh = deltaHtml(score, prev);
-        return `<td class="${sc}">${score}${dh ? `<br><small>${dh}</small>` : ''}</td>`;
+        const sc  = scoreClass(score);
+        const dh  = deltaHtml(score, prev);
+        const prevTxt = (prev !== null && prev !== undefined)
+            ? `<br><span class="tbl-prev">was&nbsp;${prev}</span>` : '';
+        return `<td class="${sc}"><span class="tbl-score">${score}</span>${dh ? `&nbsp;${dh}` : ''}${prevTxt}</td>`;
     }).join('');
     const stCls = pass ? 'st-pass' : 'st-fail';
-    const stTxt = pass ? '&#10003; PASS' : '&#10007; FAIL';
+    const stTxt = pass ? '&#10003;&nbsp;PASS' : '&#10007;&nbsp;FAIL';
     return `<tr><td class="pg">${label}</td>${cells}<td class="${stCls}">${stTxt}</td></tr>`;
 }).join('\n');
 
